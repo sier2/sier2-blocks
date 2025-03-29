@@ -47,3 +47,49 @@ class SimpleTableSelect(Block):
 
     def __panel__(self):
         return self.tabulator
+
+class DisplayFilteredTable(Block):
+    """
+    Display's data and allows the user to filter the columns
+    """
+    in_df = param.DataFrame(doc='Input pandas dataframe')
+    out_data = param.DataFrame(doc='Output pandas dataframe')
+    out_cols_sel = param.ListSelector(doc='Select the columns that you wish to have displayed in the table below.')
+ 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+    @param.depends('out_cols_sel', watch=True)
+    def __produce_plot(self):
+        if self.out_cols_sel is not None:
+            self.out_data = self.in_data[self.out_cols_sel]
+            return self.out_data
+        else:
+            self.out_data = self.in_data
+            return self.out_data
+            
+    def execute(self):
+        self.param['out_cols_sel'].objects = self.in_data.columns
+        
+        #if there are to many columns it creates a lot of latency when panel tries to put it into the tabulator
+        if len(self.in_data.columns) >= 20:
+            self.out_data = self.in_data.iloc[:,:20]
+        else:
+            self.out_data = self.in_data
+            
+    def __panel__(self):
+        return pn.Column(
+            self.param['out_cols_sel'],
+            pn.Param(
+                self,
+                parameters=['out_data'],
+                widgets = {
+                    'out_data': {'type': pn.widgets.Tabulator,
+                                 'pagination': 'local',
+                                 'page_size': 20,
+                                 'layout': 'fit_data_table',
+                                 'sizing_mode': 'stretch_width'
+                                 }
+                    }
+                ),
+            self.__produce_plot())

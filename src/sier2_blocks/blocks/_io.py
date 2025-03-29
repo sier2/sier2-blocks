@@ -147,52 +147,57 @@ class SaveDataFrame(Block):
 
     def download_csv(self):
         buf = StringIO()
-        
-        if self.in_subset_type == 'All':
-            self.in_df.to_csv(buf)
-        elif self.in_subset_type == 'Head':
-            self.in_df.head(self.in_subset_len).to_csv(buf)
-        elif self.in_subset_type == 'Tail':
-            self.in_df.tail(self.in_subset_len).to_csv(buf)
-        elif self.in_subset_type == 'Random sample':
-            self.in_df.sample(self.in_subset_len).to_csv(buf)
+        if self.in_df is not None:
+            if self.in_subset_type == 'All':
+                self.in_df.to_csv(buf)
+            elif self.in_subset_type == 'Head':
+                self.in_df.head(self.in_subset_len).to_csv(buf)
+            elif self.in_subset_type == 'Tail':
+                self.in_df.tail(self.in_subset_len).to_csv(buf)
+            elif self.in_subset_type == 'Random sample':
+                self.in_df.sample(self.in_subset_len).to_csv(buf)
+            else:
+                # We shouldn't ever end up here.
+                raise NotImplementedError
+            
+            buf.seek(0)
+            return buf
         else:
-            # We shouldn't ever end up here.
-            raise NotImplementedError
-        
-        buf.seek(0)
-        return buf
-
+            pn.state.notifications.error(f"Error: The Dataframe is empty", duration=10_000)
+            
     def download_xlsx(self):
         buf = BytesIO()
         writer = pd.ExcelWriter(buf, engine='xlsxwriter')
-        
-        if self.in_subset_type == 'All':
-            self.in_df.to_excel(writer)
-        elif self.in_subset_type == 'Head':
-            self.in_df.head(self.in_subset_len).to_excel(writer)
-        elif self.in_subset_type == 'Tail':
-            self.in_df.tail(self.in_subset_len).to_excel(writer)
-        elif self.in_subset_type == 'Random sample':
-            self.in_df.sample(self.in_subset_len).to_excel(writer)
+        if self.in_df is not None:
+            if self.in_subset_type == 'All':
+                self.in_df.to_excel(writer)
+            elif self.in_subset_type == 'Head':
+                self.in_df.head(self.in_subset_len).to_excel(writer)
+            elif self.in_subset_type == 'Tail':
+                self.in_df.tail(self.in_subset_len).to_excel(writer)
+            elif self.in_subset_type == 'Random sample':
+                self.in_df.sample(self.in_subset_len).to_excel(writer)
+            else:
+                # We shouldn't ever end up here.
+                raise NotImplementedError
+                
+            writer.close()
+            buf.seek(0)
+            return buf
         else:
-            # We shouldn't ever end up here.
-            raise NotImplementedError
-            
-        writer.close()
-        buf.seek(0)
-        return buf
+            pn.state.notifications.error(f"Error: The Dataframe is empty", duration=10_000)
 
     def execute(self):
-        self.size_msg.value = f'Saving data frame of size {self.in_df.shape}.'
+        if self.in_df is not None:
+            self.size_msg.value = f'Saving data frame of size {self.in_df.shape}.'
 
-        # Only allow file download if we've set an input.
-        #
-        if self.i_fn.value_input:
-            self.csvdl.disabled = False
-            self.xlsxdl.disabled = False
+            # Only allow file download if we've set an input.
+            #
+            if self.i_fn.value_input:
+                self.csvdl.disabled = False
+                self.xlsxdl.disabled = False
 
-        self.i_sub_l.value = self.in_df.shape[0]
+            self.i_sub_l.value = self.in_df.shape[0]
         
     def __panel__(self):
         return pn.Column(
